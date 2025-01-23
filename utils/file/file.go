@@ -4,13 +4,22 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-func moveTo(content os.DirEntry, folderPath string, newPath string) {
+func moveTo(content os.DirEntry, folderPath string, newPath string) error {
+    if content.IsDir() {
+        return nil
+    }
+
     filePath := folderPath + "/" + content.Name()
 
-    os.Rename(filePath, newPath)
+    if err := os.Rename(filePath, newPath); err != nil {
+        return err
+    }
+
+    return nil
 }
 
 func getFileExtension(fileName string) (string) {
@@ -35,10 +44,15 @@ func createExtensionDir(file os.DirEntry, path string) (string, error){
     }
 
     extensionDir := fmt.Sprintf("%s/%s", path, strings.ToUpper(extension))
-    fmt.Println(extensionDir)
+
+    if _, err := os.Stat(extensionDir); err == nil {
+        return extensionDir, nil
+    } else if !os.IsNotExist(err) {
+        return "", err
+    }
 
     err := os.Mkdir(extensionDir, 0750)
-    if err != nil && os.IsExist(err) {
+    if err != nil && os.IsNotExist(err) {
         return "", err
     }
 
@@ -47,11 +61,30 @@ func createExtensionDir(file os.DirEntry, path string) (string, error){
 
 func OrganizeFiles(folderContent []os.DirEntry, folderPath string) {
     for _, content := range folderContent {
+
         extensionDir, err := createExtensionDir(content, folderPath)
         if err != nil {
             log.Fatal(err)
         }
-        moveTo(content, folderPath, extensionDir)
+
+        var targetDir string
+        
+        if extensionDir == "" {
+            miscDir := filepath.Join(folderPath, "MISC")
+            if _, err := os.Stat(miscDir); os.IsNotExist(err) {
+                if err := os.Mkdir(miscDir, 0750); err != nil {
+                    log.Fatal(err)
+                }
+            }
+            targetDir = miscDir
+        } else {
+            targetDir = extensionDir
+        }
+
+        newFilePath := filepath.Join(targetDir, content.Name())
+        if err := moveTo(content, folderPath, newFilePath); err != nil {
+            fmt.Printf("Failed to move file %s: %v\n", content.Name(), err) 
+        }
     }
 }
 
