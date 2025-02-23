@@ -1,3 +1,5 @@
+This was made only for me to learn Go.
+
 # How does it work?
 
 When you execute the project, you provide the path to the folder you want to organize as an argument.
